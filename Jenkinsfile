@@ -32,7 +32,6 @@ pipeline {
       steps {
         withEnv(["HOME=${env.WORKSPACE}"]) {
           sh '''
-            #!/usr/bin/env bash
             set -euxo pipefail
             mkdir -p "$HOME"
 
@@ -52,7 +51,6 @@ pipeline {
         withEnv(["HOME=${env.WORKSPACE}"]) {
           withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
             sh '''
-              #!/usr/bin/env bash
               set -euxo pipefail
               echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
 
@@ -87,7 +85,6 @@ pipeline {
           else                          env.KUBE_NAMESPACE = 'nonprod'
 
           sh """
-            #!/usr/bin/env bash
             set -euxo pipefail
             helm upgrade --install my-app ./helm-chart \
               --namespace ${env.KUBE_NAMESPACE} \
@@ -105,7 +102,6 @@ pipeline {
         script {
           env.KUBE_NAMESPACE = 'prod'
           sh """
-            #!/usr/bin/env bash
             set -euxo pipefail
             helm upgrade --install my-app ./helm-chart \
               --namespace ${env.KUBE_NAMESPACE} \
