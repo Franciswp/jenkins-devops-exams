@@ -19,7 +19,6 @@ pipeline {
             }
         }
 
-        stages {
         stage('Build (docker compose)') {
             steps {
                 withEnv(["HOME=${env.WORKSPACE}"]) {
@@ -37,7 +36,6 @@ pipeline {
                 }
             }
         }
-    }
 
         stage('Push (docker compose)') {
             steps {
@@ -97,6 +95,7 @@ pipeline {
             when {
                 branch 'main'
             }
+
             steps {
                 input message: 'Approve deployment to Production?', ok: 'Deploy'
             }
