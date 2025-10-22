@@ -35,7 +35,7 @@ pipeline {
     }
     stage('Push to Docker Hub') {
     steps {
-        withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', passwordVariable: 'DOCKER_PWD', usernameVariable: 'DOCKER_USR')]) {
+        withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', passwordVariable: 'DOCKER_HUB_PASS', usernameVariable: 'cyriacus1210@gmail.com')]) {
         sh """
             echo "$DOCKER_PWD" | sudo -n docker login -u "$DOCKER_USR" --password-stdin
             sudo -n docker push ${IMAGE_REPO}:${BUILD_NUMBER}
