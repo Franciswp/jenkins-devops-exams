@@ -8,13 +8,7 @@ pipeline {
     }
     
     stages {
-        stage('Checkout') {
-            steps {
-                git credentialsId: 'github-pat-credentials',  // Match the ID you set in Jenkins
-                    url: 'https://github.com/Franciswp/jenkins-devops-exams.git',
-                    branch: env.BRANCH_NAME
-            }
-        }
+        // Removed custom 'Checkout' stage - initial SCM checkout is sufficient
         
         stage('Build Docker Image') {
             steps {
