@@ -7,16 +7,6 @@ pipeline {
     KUBE_NAMESPACE = ''
   }
   stages {
-      stage('Diagnostics') {
-        steps {
-         sh '''
-          set -eu
-          id
-          ls -l /var/run/docker.sock || true
-          docker version || true
-          '''
-        }
-      }
 
     stage('Checkout') {
       steps {
