@@ -11,6 +11,7 @@ pipeline {
     IMAGE_REPO = 'franciswebandapp/fastapi-jenkins-exams'
     // Optional default; will be overridden per branch in deploy stage
     KUBE_NAMESPACE = ''
+    DOCKER_HUB_PASS= credentials('docker-hub-credentials')
   }
 
   stages {
