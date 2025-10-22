@@ -7,7 +7,7 @@ pipeline {
 
     environment {
         IMAGE_REPO     = 'franciswebandapp/fastapi-jenkins-exams'
-        IMAGE_TAG      = env.BUILD_NUMBER // Used by docker-compose.yaml
+        IMAGE_TAG      = "${env.BUILD_NUMBER}" // Used by docker-compose.yaml
         KUBE_NAMESPACE = ''
     }
 
