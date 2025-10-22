@@ -1,136 +1,122 @@
 pipeline {
-    agent any
-
-    options {
-        skipDefaultCheckout(true)
+  environment { // Declaration of environment variables
+    DOCKER_ID = "franciswebandapp" // replace this with your docker-id
+    DOCKER_IMAGE = "fastapi-jenkins-exams"
+    DOCKER_TAG = "v.${BUILD_ID}.0" // we will tag our images with the current build in order to increment the value by 1 with each new build
+  }
+  agent any // Jenkins will be able to select all available agents
+  stages {
+    stage('Build (docker compose)') { // docker build image stage
+      steps {
+        script {
+          sh '''
+          docker rm -f jenkins || true
+          docker build -t $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG .
+          sleep 6
+          '''
+        }
+      }
     }
 
-    environment {
-        IMAGE_REPO     = 'franciswebandapp/fastapi-jenkins-exams'
-        IMAGE_TAG      = "${env.BUILD_NUMBER}" // Used by docker-compose.yaml
-        KUBE_NAMESPACE = ''
+    stage(' Docker run') { // run container from our built image
+      steps {
+        script {
+          sh '''
+          docker run -d -p 80:80 --name jenkins $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
+          sleep 10
+          '''
+        }
+      }
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                // Modern, cleaner syntax for checking out from Git
-                git url: 'https://github.com/Franciswp/jenkins-devops-exams.git', branch: 'main'
-            }
+    stage('Test Acceptance') { // we launch the curl command to validate that the container responds to the request
+      steps {
+        script {
+          sh '''
+          curl localhost
+          '''
         }
-
-        stage('Build (docker compose)') {
-            steps {
-                withEnv(["HOME=${env.WORKSPACE}"]) {
-                    sh '''
-                        #!/usr/bin/env bash
-                        set -euxo pipefail
-                        mkdir -p "$HOME"
-                        # Prefer v2 ("docker compose"), fall back to v1 ("docker-compose")
-                        if docker compose version >/dev/null 2>&1; then
-                            docker compose --ansi never --progress=plain build
-                        else
-                            docker-compose build
-                        fi
-                    '''
-                }
-            }
-        }
-
-        stage('Push (docker compose)') {
-            steps {
-                withEnv(["HOME=${env.WORKSPACE}"]) {
-                    withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
-                        sh '''
-                            #!/usr/bin/env bash
-                            set -euxo pipefail
-                            echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-                            # Push the tag defined in compose (IMAGE_REPO:IMAGE_TAG)
-                            if docker compose version >/dev/null 2>&1; then
-                                docker compose push app
-                            else
-                                docker-compose push app
-                            fi
-                            # Ensure 'latest' is also pushed
-                            docker push "${IMAGE_REPO}:latest"
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Deploy to Non-Production') {
-            environment {
-                // Load Kubeconfig file from Jenkins credentials
-                KUBECONFIG = credentials('config')
-            }
-
-            // This stage runs for any branch that is NOT 'main'
-            when {
-                not { branch 'main' }
-            }
-
-            steps {
-                script {
-                    def branch = env.BRANCH_NAME ?: 'main'
-                    if (branch == 'dev')          env.KUBE_NAMESPACE = 'dev'
-                    else if (branch == 'qa')      env.KUBE_NAMESPACE = 'qa'
-                    else if (branch == 'staging') env.KUBE_NAMESPACE = 'staging'
-                    else                          env.KUBE_NAMESPACE = 'nonprod' // Default for other branches
-
-                    sh '''
-                        #!/usr/bin/env bash
-                        set -euxo pipefail
-                        helm upgrade --install my-app ./helm-chart \
-                            --namespace "${env.KUBE_NAMESPACE}" \
-                            --set image.repository="${IMAGE_REPO}" \
-                            --set image.tag="${IMAGE_TAG}"
-                    '''
-                }
-            }
-        }
-
-        stage('Manual Approval for Production') {
-            // This stage only runs for the 'main' branch
-            when {
-                branch 'main'
-            }
-
-            steps {
-                input message: 'Approve deployment to Production?', ok: 'Deploy'
-            }
-        }
-
-        stage('Deploy to Production') {
-            environment {
-                KUBECONFIG = credentials('config')
-            }
-
-            // This stage only runs for the 'main' branch after manual approval
-            when {
-                branch 'main'
-            }
-
-            steps {
-                script {
-                    env.KUBE_NAMESPACE = 'prod'
-                    sh '''
-                        #!/usr/bin/env bash
-                        set -euxo pipefail
-                        helm upgrade --install my-app ./helm-chart \
-                            --namespace "${env.KUBE_NAMESPACE}" \
-                            --set image.repository="${IMAGE_REPO}" \
-                            --set image.tag="${IMAGE_TAG}"
-                    '''
-                }
-            }
-        }
+      }
     }
 
-    post {
-        always {
-            // Clean up the workspace after the pipeline run
-            cleanWs()
+    stage('Docker Push') { //we pass the built image to our docker hub account
+      environment {
+            DOCKERHUB_CREDENTIALS = credentials("docker-hub-credentials") // we retrieve docker password from secret text called docker_hub_pass saved on jenkins
         }
+      steps {
+        script {
+          sh '''
+          docker login -u $DOCKER_ID -p $DOCKERHUB_CREDENTIALS
+          docker push $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
+          '''
+        }
+      }
     }
+
+    stage('Deployment in dev'){
+      environment
+      {
+        KUBECONFIG = credentials("config") // we retrieve kubeconfig from secret file called config saved on jenkins
+      }
+      steps {
+        script {
+          sh '''
+          rm -Rf .kube
+          mkdir .kube
+          ls
+          cat $KUBECONFIG > .kube/config
+          cp fastapi/values.yaml values.yml
+          cat values.yml
+          sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
+          helm upgrade --install app fastapi --values=values.yml --namespace dev
+          '''
+        }
+      }
+    }
+
+    stage('Deployment in staging') {
+      environment {
+        KUBECONFIG = credentials("config") // we retrieve kubeconfig from secret file called config saved on jenkins
+      }
+      steps {
+        script {
+          sh '''
+          rm -Rf .kube
+          mkdir .kube
+          ls
+          cat $KUBECONFIG > .kube/config
+          cp fastapi/values.yaml values.yml
+          cat values.yml
+          sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
+          helm upgrade --install app fastapi --values=values.yml --namespace staging
+          '''
+        }
+      }
+    }
+
+    stage('Deploiement en prod'){
+      environment {
+        KUBECONFIG = credentials("config") // we retrieve kubeconfig from secret file called config saved on jenkins
+      }
+      steps {
+      // Create an Approval Button with a timeout of 15 minutes.
+      // this requires a manual validation in order to deploy on production environment
+        timeout(time: 15, unit: "MINUTES") {
+            input message: 'Do you want to deploy in production ?', ok: 'Yes'
+        }
+        script {
+          sh '''
+          rm -Rf .kube
+          mkdir .kube
+          ls
+          cat $KUBECONFIG > .kube/config
+          cp fastapi/values.yaml values.yml
+          cat values.yml
+          sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
+          helm upgrade --install app fastapi --values=values.yml --namespace prod
+          '''
+        }
+      }
+    }
+  }
 }
