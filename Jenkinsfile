@@ -9,9 +9,12 @@ pipeline {
   stages {
       stage('Diagnostics') {
         steps {
-       sh '''
-        set -euo pipefail
-        # your commands...
+      sh '''
+        set -eu
+        # avoid failing pipelines hidden in pipes
+        id
+        ls -l /var/run/docker.sock || true
+        docker version || true
         '''
       }
 
