@@ -1,22 +1,24 @@
 pipeline {
   agent any
   options { skipDefaultCheckout(true) }
-
   environment {
     IMAGE_REPO = 'franciswebandapp/fastapi-jenkins-exams'
+    IMAGE_TAG  = "${env.BUILD_NUMBER}"   // used by docker-compose.yaml
     KUBE_NAMESPACE = ''
   }
-
   stages {
     stage('Diagnostics') {
       steps {
         sh '''
+          set -euxo pipefail
           echo "User and groups:"
           id
           echo "Docker socket permissions:"
           ls -l /var/run/docker.sock || true
           echo "Docker version:"
           docker version || true
+          echo "Docker Compose version:"
+          (docker compose version || docker-compose version) || true
         '''
       }
     }
@@ -31,26 +33,42 @@ pipeline {
       }
     }
 
-    stage('Build Docker Image') {
+    stage('Build (docker compose)') {
       steps {
-        // If /home/jenkins isn’t writable, use workspace as HOME to avoid permission issues
         withEnv(["HOME=${env.WORKSPACE}"]) {
-          sh 'mkdir -p "$HOME"'
-          script {
-            docker.build("${IMAGE_REPO}:${env.BUILD_NUMBER}")
-          }
+          sh '''
+            set -euxo pipefail
+            mkdir -p "$HOME"
+
+            # Prefer v2 ("docker compose"), fall back to v1 ("docker-compose")
+            if docker compose version >/dev/null 2>&1; then
+              docker compose --ansi never --progress=plain build
+            else
+              docker-compose build
+            fi
+          '''
         }
       }
     }
 
-    stage('Push to Docker Hub') {
+    stage('Push (docker compose)') {
       steps {
         withEnv(["HOME=${env.WORKSPACE}"]) {
-          script {
-            docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-credentials') {
-              docker.image("${IMAGE_REPO}:${env.BUILD_NUMBER}").push()
-              docker.image("${IMAGE_REPO}:${env.BUILD_NUMBER}").push('latest')
-            }
+          withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+            sh '''
+              set -euxo pipefail
+              echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
+
+              # Push the tag defined in compose (IMAGE_REPO:IMAGE_TAG)
+              if docker compose version >/dev/null 2>&1; then
+                docker compose push app
+              else
+                docker-compose push app
+              fi
+
+              # Ensure 'latest' is also pushed (built via build.tags, but push it explicitly)
+              docker push "${IMAGE_REPO}:latest"
+            '''
           }
         }
       }
@@ -66,16 +84,17 @@ pipeline {
       steps {
         script {
           def branch = env.BRANCH_NAME ?: 'main'
-          if (branch == 'dev')      env.KUBE_NAMESPACE = 'dev'
-          else if (branch == 'qa')  env.KUBE_NAMESPACE = 'qa'
+          if (branch == 'dev')          env.KUBE_NAMESPACE = 'dev'
+          else if (branch == 'qa')      env.KUBE_NAMESPACE = 'qa'
           else if (branch == 'staging') env.KUBE_NAMESPACE = 'staging'
-          else                      env.KUBE_NAMESPACE = 'nonprod'
+          else                          env.KUBE_NAMESPACE = 'nonprod'
 
           sh """
+            set -euxo pipefail
             helm upgrade --install my-app ./helm-chart \
               --namespace ${env.KUBE_NAMESPACE} \
               --set image.repository=${IMAGE_REPO} \
-              --set image.tag=${env.BUILD_NUMBER}
+              --set image.tag=${IMAGE_TAG}
           """
         }
       }
@@ -88,16 +107,16 @@ pipeline {
         script {
           env.KUBE_NAMESPACE = 'prod'
           sh """
+            set -euxo pipefail
             helm upgrade --install my-app ./helm-chart \
               --namespace ${env.KUBE_NAMESPACE} \
               --set image.repository=${IMAGE_REPO} \
-              --set image.tag=${env.BUILD_NUMBER}
+              --set image.tag=${IMAGE_TAG}
           """
         }
       }
     }
   }
-
   post {
     always { cleanWs() }
   }
