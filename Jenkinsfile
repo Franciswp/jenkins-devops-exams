@@ -8,10 +8,15 @@ pipeline {
   stages {
     stage('Build (docker compose)') { // docker build image stage
       steps {
-        script {
+       withEnv(["HOME=${env.WORKSPACE}"])  {
           sh '''
-          docker rm -f fastapi-jenkins-exams
-          docker build -t $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG .
+           mkdir -p "$HOME"
+           # Prefer v2 ("docker compose"), fall back to v1 ("docker-compose")
+           if docker compose version >/dev/null 2>&1; then
+           docker compose --ansi never --progress=plain build
+           else
+           docker-compose build
+           fi
           sleep 6
           '''
         }
