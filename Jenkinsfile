@@ -25,27 +25,27 @@ pipeline {
     }
 
     stage('Build Docker Image') {
-      steps {
+    steps {
+        withEnv(['HOME=/var/lib/jenkins']) {
         script {
-          // Build and tag with the build number
-          docker.build("${IMAGE_REPO}:${env.BUILD_NUMBER}")
+            docker.build("${IMAGE_REPO}:${env.BUILD_NUMBER}")
         }
-      }
+        }
+    }
     }
 
     stage('Push to Docker Hub') {
-      steps {
+    steps {
+        withEnv(['HOME=/var/lib/jenkins']) {
         script {
-          // Use your Jenkins credentials ID for Docker Hub (Username/Password or Token)
-          docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-credentials') {
+            docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-credentials') {
             docker.image("${IMAGE_REPO}:${env.BUILD_NUMBER}").push()
-            // Also push/update 'latest'
             docker.image("${IMAGE_REPO}:${env.BUILD_NUMBER}").push('latest')
-          }
+            }
         }
-      }
+        }
     }
-
+    }
     stage('Deploy to Kubernetes') {
       environment {
         // KUBECONFIG is a "Secret file" credential; this becomes a filepath
