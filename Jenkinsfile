@@ -33,7 +33,7 @@ pipeline {
       steps {
         script {
           // Use your Jenkins credentials ID for Docker Hub (Username/Password)
-          docker.withRegistry('https://index.docker.io/v1/', 'DOCKERHUB_CREDENTIALS') {
+          docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-credentials') {
             docker.image("${IMAGE_REPO}:${env.BUILD_NUMBER}").push()
             docker.image("${IMAGE_REPO}:${env.BUILD_NUMBER}").push('latest')
           }
