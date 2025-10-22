@@ -7,6 +7,15 @@ pipeline {
     KUBE_NAMESPACE = ''
   }
   stages {
+      stage('Diagnostics') {
+        steps {
+         sh '''
+            #!/usr/bin/env bash
+            set -euo pipefail
+            # your commands...
+            '''     
+        }
+      }
 
     stage('Checkout') {
       steps {
