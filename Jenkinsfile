@@ -7,6 +7,7 @@ pipeline {
         KUBE_NAMESPACE = ''  // Will set based on branch
     }
     
+    stages {
         stage('Checkout') {
             steps {
                 git credentialsId: 'github-pat-credentials',  // Match the ID you set in Jenkins
