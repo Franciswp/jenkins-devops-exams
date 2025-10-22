@@ -9,16 +9,12 @@ pipeline {
   stages {
       stage('Diagnostics') {
         steps {
-          sh '''
-            #!/usr/bin/env bash
-            set -euo pipefail
-            echo "User and groups:"
-            id
-            echo "Docker socket permissions:"
-            ls -l /var/run/docker.sock || true
-            echo "Docker version:"
-            docker version || true
-          '''
+         sh '''
+          set -eu
+          id
+          ls -l /var/run/docker.sock || true
+          docker version || true
+        '''
         }
       }
 
