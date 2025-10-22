@@ -3,7 +3,7 @@ pipeline {
     
     environment {
         DOCKERHUB_CREDENTIALS = credentials('DOCKERHUB_CREDENTIALS')  // Add this in Jenkins credentials
-        IMAGE_NAME = 'franciswebandapp/fastapi-jenkins-exams'
+        IMAGE_NAME = 'franciswebandapp/fastapi-jenkins-exams:latest'
         KUBE_NAMESPACE = ''  // Will set based on branch
     }
     
