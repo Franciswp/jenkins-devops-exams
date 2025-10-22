@@ -19,6 +19,7 @@ pipeline {
             }
         }
 
+        stages {
         stage('Build (docker compose)') {
             steps {
                 withEnv(["HOME=${env.WORKSPACE}"]) {
@@ -36,6 +37,7 @@ pipeline {
                 }
             }
         }
+    }
 
         stage('Push (docker compose)') {
             steps {
