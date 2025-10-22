@@ -10,7 +10,7 @@ pipeline {
       steps {
         script {
           sh '''
-          docker rm -f jenkins || true
+          docker rm -f fastapi-jenkins-exams
           docker build -t $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG .
           sleep 6
           '''
