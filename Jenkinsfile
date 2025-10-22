@@ -1,71 +1,75 @@
 pipeline {
   agent any
-
-  options {
-    // We do our own checkout stage
-    skipDefaultCheckout(true)
-  }
+  options { skipDefaultCheckout(true) }
 
   environment {
-    // Repository only (no tag here)
     IMAGE_REPO = 'franciswebandapp/fastapi-jenkins-exams'
-    // Optional default; will be overridden per branch in deploy stage
     KUBE_NAMESPACE = ''
-    DOCKER_HUB_PASS= credentials('docker-hub-credentials')
   }
 
   stages {
+    stage('Diagnostics') {
+      steps {
+        sh '''
+          echo "User and groups:"
+          id
+          echo "Docker socket permissions:"
+          ls -l /var/run/docker.sock || true
+          echo "Docker version:"
+          docker version || true
+        '''
+      }
+    }
+
     stage('Checkout') {
       steps {
         checkout([$class: 'GitSCM',
           userRemoteConfigs: [[url: 'https://github.com/Franciswp/jenkins-devops-exams.git']],
           branches: [[name: '*/main']],
-          gitTool: 'git' // must match the tool name in Global Tool Configuration (or remove to use PATH)
+          gitTool: 'git'
         ])
       }
     }
 
-        stage('Build Docker Image') {
-    steps {
-        sh """
-        sudo -n docker build -t ${IMAGE_REPO}:${BUILD_NUMBER} .
-        sudo -n docker tag ${IMAGE_REPO}:${BUILD_NUMBER} ${IMAGE_REPO}:latest
-        """
-    }
-    }
-    stage('Push to Docker Hub') {
-    steps {
-        withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', passwordVariable: 'DOCKER_HUB_PASS', usernameVariable: 'cyriacus1210@gmail.com')]) {
-        sh """
-            echo "$DOCKER_PWD" | sudo -n docker login -u "$DOCKER_USR" --password-stdin
-            sudo -n docker push ${IMAGE_REPO}:${BUILD_NUMBER}
-            sudo -n docker push ${IMAGE_REPO}:latest
-        """
+    stage('Build Docker Image') {
+      steps {
+        // If /home/jenkins isn’t writable, use workspace as HOME to avoid permission issues
+        withEnv(["HOME=${env.WORKSPACE}"]) {
+          sh 'mkdir -p "$HOME"'
+          script {
+            docker.build("${IMAGE_REPO}:${env.BUILD_NUMBER}")
+          }
         }
+      }
     }
+
+    stage('Push to Docker Hub') {
+      steps {
+        withEnv(["HOME=${env.WORKSPACE}"]) {
+          script {
+            docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-credentials') {
+              docker.image("${IMAGE_REPO}:${env.BUILD_NUMBER}").push()
+              docker.image("${IMAGE_REPO}:${env.BUILD_NUMBER}").push('latest')
+            }
+          }
+        }
+      }
     }
+
     stage('Deploy to Kubernetes') {
       environment {
-        // KUBECONFIG is a "Secret file" credential; this becomes a filepath
         KUBECONFIG = credentials('config')
       }
       when {
-        not { branch 'master' } // Auto-deploy to non-prod
+        not { branch 'master' }
       }
       steps {
         script {
-          // Determine namespace based on branch (defaults to 'main' if BRANCH_NAME is null)
           def branch = env.BRANCH_NAME ?: 'main'
-          if (branch == 'dev') {
-            env.KUBE_NAMESPACE = 'dev'
-          } else if (branch == 'qa') {
-            env.KUBE_NAMESPACE = 'qa'
-          } else if (branch == 'staging') {
-            env.KUBE_NAMESPACE = 'staging'
-          } else {
-            // Fallback non-prod namespace
-            env.KUBE_NAMESPACE = 'nonprod'
-          }
+          if (branch == 'dev')      env.KUBE_NAMESPACE = 'dev'
+          else if (branch == 'qa')  env.KUBE_NAMESPACE = 'qa'
+          else if (branch == 'staging') env.KUBE_NAMESPACE = 'staging'
+          else                      env.KUBE_NAMESPACE = 'nonprod'
 
           sh """
             helm upgrade --install my-app ./helm-chart \
@@ -95,8 +99,6 @@ pipeline {
   }
 
   post {
-    always {
-      cleanWs()
-    }
+    always { cleanWs() }
   }
 }
