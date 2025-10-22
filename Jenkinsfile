@@ -25,25 +25,22 @@ pipeline {
       }
     }
 
-    stage('Build Docker Image') {
+        stage('Build Docker Image') {
     steps {
-        withEnv(['HOME=/var/lib/jenkins']) {
-        script {
-            docker.build("${IMAGE_REPO}:${env.BUILD_NUMBER}")
-        }
-        }
+        sh """
+        sudo -n docker build -t ${IMAGE_REPO}:${BUILD_NUMBER} .
+        sudo -n docker tag ${IMAGE_REPO}:${BUILD_NUMBER} ${IMAGE_REPO}:latest
+        """
     }
     }
-
     stage('Push to Docker Hub') {
     steps {
-        withEnv(['HOME=/var/lib/jenkins']) {
-        script {
-            docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-credentials') {
-            docker.image("${IMAGE_REPO}:${env.BUILD_NUMBER}").push()
-            docker.image("${IMAGE_REPO}:${env.BUILD_NUMBER}").push('latest')
-            }
-        }
+        withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', passwordVariable: 'DOCKER_PWD', usernameVariable: 'DOCKER_USR')]) {
+        sh """
+            echo "$DOCKER_PWD" | sudo -n docker login -u "$DOCKER_USR" --password-stdin
+            sudo -n docker push ${IMAGE_REPO}:${BUILD_NUMBER}
+            sudo -n docker push ${IMAGE_REPO}:latest
+        """
         }
     }
     }
