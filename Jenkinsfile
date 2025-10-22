@@ -1,7 +1,18 @@
 pipeline {
-    agent any
+  agent any
 
-        stage('Checkout') {
+  options {
+    skipDefaultCheckout(true)
+  }
+
+  environment {
+    IMAGE_REPO     = 'franciswebandapp/fastapi-jenkins-exams'
+    IMAGE_TAG      = env.BUILD_NUMBER // Used by docker-compose.yaml
+    KUBE_NAMESPACE = ''
+  }
+
+  stages {
+    stage('Checkout') {
       steps {
         // Modern, cleaner syntax for checking out from Git
         git url: 'https://github.com/Franciswp/jenkins-devops-exams.git', branch: 'main'
@@ -18,13 +29,16 @@ pipeline {
             mkdir -p "$HOME"
             # Prefer v2 ("docker compose"), fall back to v1 ("docker-compose")
             if docker compose version >/dev/null 2>&1; then
-              docker compose --ansi never --progress=plain build            else
+              docker compose --ansi never --progress=plain build
+            else
               docker-compose build
             fi
           '''
         }
       }
-    }    stage('Push (docker compose)') {
+    }
+
+    stage('Push (docker compose)') {
       steps {
         withEnv(["HOME=${env.WORKSPACE}"]) {
           withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
@@ -45,7 +59,8 @@ pipeline {
               docker push "${IMAGE_REPO}:latest"
             '''
           }
-        }      }
+        }
+      }
     }
 
     stage('Deploy to Non-Production') {
@@ -56,7 +71,8 @@ pipeline {
       // This stage runs for any branch that is NOT 'main'
       when {
         not { branch 'main' }
-      }      steps {
+      }
+      steps {
         script {
           def branch = env.BRANCH_NAME ?: 'main'
           if (branch == 'dev')          env.KUBE_NAMESPACE = 'dev'
@@ -64,14 +80,15 @@ pipeline {
           else if (branch == 'staging') env.KUBE_NAMESPACE = 'staging'
           else                          env.KUBE_NAMESPACE = 'nonprod' // Default for other branches
 
-          sh """
+          sh '''
             #!/usr/bin/env bash
             set -euxo pipefail
 
-            helm upgrade --install my-app ./helm-chart \\
-              --namespace "${env.KUBE_NAMESPACE}" \\
-              --set image.repository="${IMAGE_REPO}" \\
-              --set image.tag="${IMAGE_TAG}"          """
+            helm upgrade --install my-app ./helm-chart \
+              --namespace "${env.KUBE_NAMESPACE}" \
+              --set image.repository="${IMAGE_REPO}" \
+              --set image.tag="${IMAGE_TAG}"
+          '''
         }
       }
     }
@@ -90,19 +107,27 @@ pipeline {
       }
       // This stage only runs for the 'main' branch after manual approval
       when { branch 'main' }
-      steps {        script {
+      steps {
+        script {
           env.KUBE_NAMESPACE = 'prod'
-          sh """
+          sh '''
             #!/usr/bin/env bash
             set -euxo pipefail
 
-            helm upgrade --install my-app ./helm-chart \\
-              --namespace "${env.KUBE_NAMESPACE}" \\
-              --set image.repository="${IMAGE_REPO}" \\
+            helm upgrade --install my-app ./helm-chart \
+              --namespace "${env.KUBE_NAMESPACE}" \
+              --set image.repository="${IMAGE_REPO}" \
               --set image.tag="${IMAGE_TAG}"
-          """
+          '''
         }
-      }    }
+      }
     }
+  }
 
+  post {
+    always {
+      // Clean up the workspace after the pipeline run
+      cleanWs()
+    }
+  }
 }
