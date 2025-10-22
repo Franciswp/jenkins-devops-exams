@@ -9,11 +9,12 @@ pipeline {
   stages {
       stage('Diagnostics') {
         steps {
-         sh '''
-            #!/usr/bin/env bash
-            set -euo pipefail
-            # your commands...
-            '''     
+        sh(script: '''
+          set -euo pipefail
+          id
+          ls -l /var/run/docker.sock || true
+          docker version || true
+          ''', shell: '/usr/bin/env bash')    
         }
       }
 
