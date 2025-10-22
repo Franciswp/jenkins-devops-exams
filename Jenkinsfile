@@ -1,9 +1,14 @@
 pipeline {
   agent any
 
+  options {
+    // We do our own checkout stage
+    skipDefaultCheckout(true)
+  }
+
   environment {
-    // Store only the repository name here (no tag)
-    IMAGE_REPO = 'franciswebandapp/fastapi-jenkins-exams:latest'
+    // Repository only (no tag here)
+    IMAGE_REPO = 'franciswebandapp/fastapi-jenkins-exams'
     // Optional default; will be overridden per branch in deploy stage
     KUBE_NAMESPACE = ''
   }
@@ -14,16 +19,15 @@ pipeline {
         checkout([$class: 'GitSCM',
           userRemoteConfigs: [[url: 'https://github.com/Franciswp/jenkins-devops-exams.git']],
           branches: [[name: '*/main']],
-          gitTool: 'git' // must match the tool name in Global Tool Configuration
+          gitTool: 'git' // must match the tool name in Global Tool Configuration (or remove to use PATH)
         ])
       }
     }
 
-    // Initial SCM checkout by Jenkins is sufficient
-
     stage('Build Docker Image') {
       steps {
         script {
+          // Build and tag with the build number
           docker.build("${IMAGE_REPO}:${env.BUILD_NUMBER}")
         }
       }
@@ -32,9 +36,10 @@ pipeline {
     stage('Push to Docker Hub') {
       steps {
         script {
-          // Use your Jenkins credentials ID for Docker Hub (Username/Password)
+          // Use your Jenkins credentials ID for Docker Hub (Username/Password or Token)
           docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-credentials') {
             docker.image("${IMAGE_REPO}:${env.BUILD_NUMBER}").push()
+            // Also push/update 'latest'
             docker.image("${IMAGE_REPO}:${env.BUILD_NUMBER}").push('latest')
           }
         }
@@ -43,7 +48,7 @@ pipeline {
 
     stage('Deploy to Kubernetes') {
       environment {
-        // Retrieve kubeconfig from a Jenkins "Secret file" credential with ID "config"
+        // KUBECONFIG is a "Secret file" credential; this becomes a filepath
         KUBECONFIG = credentials('config')
       }
       when {
@@ -51,10 +56,8 @@ pipeline {
       }
       steps {
         script {
-          // If this is not a Multibranch Pipeline, BRANCH_NAME may be null.
-          // Adjust as needed, or set a default.
+          // Determine namespace based on branch (defaults to 'main' if BRANCH_NAME is null)
           def branch = env.BRANCH_NAME ?: 'main'
-
           if (branch == 'dev') {
             env.KUBE_NAMESPACE = 'dev'
           } else if (branch == 'qa') {
@@ -67,9 +70,9 @@ pipeline {
           }
 
           sh """
-            helm upgrade --install my-app ./helm-chart \\
-              --namespace ${env.KUBE_NAMESPACE} \\
-              --set image.repository=${IMAGE_REPO} \\
+            helm upgrade --install my-app ./helm-chart \
+              --namespace ${env.KUBE_NAMESPACE} \
+              --set image.repository=${IMAGE_REPO} \
               --set image.tag=${env.BUILD_NUMBER}
           """
         }
@@ -83,9 +86,9 @@ pipeline {
         script {
           env.KUBE_NAMESPACE = 'prod'
           sh """
-            helm upgrade --install my-app ./helm-chart \\
-              --namespace ${env.KUBE_NAMESPACE} \\
-              --set image.repository=${IMAGE_REPO} \\
+            helm upgrade --install my-app ./helm-chart \
+              --namespace ${env.KUBE_NAMESPACE} \
+              --set image.repository=${IMAGE_REPO} \
               --set image.tag=${env.BUILD_NUMBER}
           """
         }
