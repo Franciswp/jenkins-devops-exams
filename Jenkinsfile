@@ -7,21 +7,17 @@ pipeline {
     KUBE_NAMESPACE = ''
   }
   stages {
-    stage('Diagnostics') {
-      steps {
-        sh '''
-          set -euxo pipefail
-          echo "User and groups:"
-          id
-          echo "Docker socket permissions:"
-          ls -l /var/run/docker.sock || true
-          echo "Docker version:"
-          docker version || true
-          echo "Docker Compose version:"
-          (docker compose version || docker-compose version) || true
-        '''
+      stage('Diagnostics') {
+        steps {
+          sh '''
+            #!/usr/bin/env bash
+            set -euo pipefail
+            echo "User and groups:"; id
+            echo "Docker socket permissions:"; ls -l /var/run/docker.sock || true
+            echo "Docker version:"; docker version || true
+          '''
+        }
       }
-    }
 
     stage('Checkout') {
       steps {
