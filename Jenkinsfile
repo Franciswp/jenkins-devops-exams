@@ -10,13 +10,14 @@ pipeline {
       stage('Diagnostics') {
         steps {
         sh '''
-          set -eu
-          # avoid failing pipelines hidden in pipes
-          id
-          ls -l /var/run/docker.sock || true
-          docker version || true
-          '''
-        }
+          #!/usr/bin/env bash
+          set -euo pipefail  echo "User and groups:"
+            id
+            echo "Docker socket permissions:"
+            ls -l /var/run/docker.sock || true
+            echo "Docker version:"
+            docker version || true
+          '''     
       }
 
     stage('Checkout') {
@@ -33,6 +34,7 @@ pipeline {
       steps {
         withEnv(["HOME=${env.WORKSPACE}"]) {
           sh '''
+            #!/usr/bin/env bash
             set -euxo pipefail
             mkdir -p "$HOME"
 
@@ -52,6 +54,7 @@ pipeline {
         withEnv(["HOME=${env.WORKSPACE}"]) {
           withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
             sh '''
+              #!/usr/bin/env bash
               set -euxo pipefail
               echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
 
@@ -86,6 +89,7 @@ pipeline {
           else                          env.KUBE_NAMESPACE = 'nonprod'
 
           sh """
+            #!/usr/bin/env bash
             set -euxo pipefail
             helm upgrade --install my-app ./helm-chart \
               --namespace ${env.KUBE_NAMESPACE} \
@@ -103,6 +107,7 @@ pipeline {
         script {
           env.KUBE_NAMESPACE = 'prod'
           sh """
+            #!/usr/bin/env bash
             set -euxo pipefail
             helm upgrade --install my-app ./helm-chart \
               --namespace ${env.KUBE_NAMESPACE} \
