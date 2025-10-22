@@ -3,7 +3,7 @@ pipeline {
 
   environment {
     // Store only the repository name here (no tag)
-    IMAGE_REPO = 'franciswebandapp/fastapi-jenkins-exams'
+    IMAGE_REPO = 'franciswebandapp/fastapi-jenkins-exams:latest'
     // Optional default; will be overridden per branch in deploy stage
     KUBE_NAMESPACE = ''
   }
