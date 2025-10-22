@@ -11,7 +11,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git credentialsId: 'github-pat-credentials',  // Match the ID you set in Jenkins
-                    url: 'https://github.com/Franciswp/jenkins_devops_exams.git',
+                    url: 'https://github.com/Franciswp/jenkins-devops-exams.git',
                     branch: env.BRANCH_NAME
             }
         }
