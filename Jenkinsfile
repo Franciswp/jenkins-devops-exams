@@ -9,12 +9,7 @@ pipeline {
   stages {
       stage('Diagnostics') {
         steps {
-        sh(script: '''
-          set -euo pipefail
-          id
-          ls -l /var/run/docker.sock || true
-          docker version || true
-          ''', shell: '/usr/bin/env bash')    
+        sh 'bash -euo pipefail -c "id; ls -l /var/run/docker.sock || true; docker version || true"'
         }
       }
 
