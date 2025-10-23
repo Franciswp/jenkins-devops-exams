@@ -54,10 +54,9 @@ pipeline {
         stage('Deployment in dev') {
             steps {
                 script {
-                    
                     // Prepare values file
                     sh '''
-                       # Deploy
+                        # Deploy
                         echo "helm upgraded to namespace dev"
                     '''
                 }
@@ -67,26 +66,25 @@ pipeline {
         stage('Deployment in staging') {
             steps {
                 script {
-                    
                     // Prepare values file
                     sh '''
-                       # Deploy
-                        echo "helm upgraded to namespace "
+                        # Deploy
+                        echo "helm upgraded to namespace staging"
                     '''
                 }
             }
         }
 
         stage('Deployment in prod') {
-           steps {
+            steps {
                 script {
-                    
                     // Prepare values file
                     sh '''
-                       # Deploy
+                        # Deploy
                         echo "helm upgraded to namespace prod"
                     '''
                 }
             }
+        }
     }
 }
