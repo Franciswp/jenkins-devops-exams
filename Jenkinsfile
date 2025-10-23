@@ -71,7 +71,7 @@ pipeline {
                     // Prepare values file
                     sh '''
                        # Deploy
-                        echo "helm upgraded to namespace stagin"
+                        echo "helm upgraded to namespace "
                     '''
                 }
             }
@@ -88,6 +88,5 @@ pipeline {
                     '''
                 }
             }
-        }
-  }
-)
+    }
+}
