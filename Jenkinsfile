@@ -60,8 +60,8 @@ pipeline {
                         mkdir .kube
                     '''
                     // Check if the Kubeconfig file exists
-                    if (fileExists('$config')) {
-                        sh 'cat $config > .kube/config'
+                    if (fileExists('config')) {
+                        sh 'cat config > .kube/config'
                     } else {
                         error "config file not found!"
                     }
