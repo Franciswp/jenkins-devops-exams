@@ -60,10 +60,10 @@ pipeline {
                         mkdir .kube
                     '''
                     // Check if the Kubeconfig file exists
-                    if (fileExists('$KUBECONFIG')) {
-                        sh 'cat $KUBECONFIG > .kube/config'
+                    if (fileExists('$config')) {
+                        sh 'cat $config > .kube/config'
                     } else {
-                        error "Kubeconfig file not found!"
+                        error "config file not found!"
                     }
                     // Prepare values file
                     sh '''
@@ -77,7 +77,7 @@ pipeline {
 
         stage('Deployment in staging') {
             environment {
-                KUBECONFIG = credentials("config") // Retrieve kubeconfig from secret file
+                config = credentials("config") // Retrieve kubeconfig from secret file
             }
             steps {
                 script {
@@ -85,7 +85,7 @@ pipeline {
                         rm -Rf .kube
                         mkdir .kube
                         ls
-                        cat $KUBECONFIG > .kube/config
+                        cat $config > .kube/config
                         cp fastapi/values.yaml values.yml
                         cat values.yml
                         sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
@@ -97,7 +97,7 @@ pipeline {
 
         stage('Deployment in prod') {
             environment {
-                KUBECONFIG = credentials("config") // Retrieve kubeconfig from secret file
+                config = credentials("config") // Retrieve kubeconfig from secret file
             }
             steps {
                 // Create an Approval Button with a timeout of 15 minutes
@@ -109,7 +109,7 @@ pipeline {
                         rm -Rf .kube
                         mkdir .kube
                         ls
-                        cat $KUBECONFIG > .kube/config
+                        cat $config > .kube/config
                         cp fastapi/values.yaml values.yml
                         cat values.yml
                         sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
