@@ -2,7 +2,7 @@ pipeline {
   environment { // Declaration of environment variables
     DOCKER_ID = "franciswebandapp" // replace this with your docker-id
     DOCKER_IMAGE = "fastapi-jenkins-exams"
-    DOCKER_TAG = "v.${BUILD_ID}:latest" // we will tag our images with the current build in order to increment the value by 1 with each new build
+    DOCKER_TAG = "v.${BUILD_ID}.0" // we will tag our images with the current build in order to increment the value by 1 with each new build
   }
   agent any // Jenkins will be able to select all available agents
   stages {
@@ -42,7 +42,7 @@ pipeline {
         script {
           sh '''
           echo "$DOCKERHUB_CREDENTIALS" | docker login -u "$DOCKER_ID" --password-stdin
-          docker tag franciswebandapp/fastapi-jenkins-exams:latest franciswebandapp/fastapi-jenkins-exams:latest
+          docker tag franciswebandapp/fastapi-jenkins-exams:latest 
           docker push franciswebandapp/fastapi-jenkins-exams:latest
           '''
         }
