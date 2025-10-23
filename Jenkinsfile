@@ -56,18 +56,26 @@ pipeline {
       }
       steps {
         script {
-          sh '''
-          rm -Rf .kube
-          mkdir .kube
-          ls
-          cat $KUBECONFIG > .kube/config
-          cp fastapi/values.yaml values.yml
-          cat values.yml
-          sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
-          helm upgrade --install app fastapi --values=values.yml --namespace dev
-          '''
+            // Clean and prepare the kube directory
+            sh '''
+                rm -Rf .kube
+                mkdir .kube
+            '''
+            // Check if the Kubeconfig file exists
+            if (fileExists('$KUBECONFIG')) {
+                sh 'cat $KUBECONFIG > .kube/config'
+            } else {
+                error "Kubeconfig file not found!"
+            }
+
+            // Prepare values file
+            sh '''
+                cp fastapi/values.yaml values.yml
+                sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
+                helm upgrade --install app fastapi --values=values.yml --namespace dev
+            '''
         }
-      }
+    }
     }
 
     stage('Deployment in staging') {
