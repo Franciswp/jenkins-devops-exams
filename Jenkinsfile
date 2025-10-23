@@ -41,7 +41,7 @@ pipeline {
       steps {
         script {
           sh '''
-          echo "docker-hub-credentials" | docker login -u franciswebandapp --password-stdin
+          echo "$DOCKERHUB_CREDENTIALS" | docker login -u "$DOCKER_ID" --password-stdin
           docker tag franciswebandapp/fastapi-jenkins-exams:latest franciswebandapp/fastapi-jenkins-exams:v12.${BUILD_ID}:
           docker push franciswebandapp/fastapi-jenkins-exams:latest
           '''
