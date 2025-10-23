@@ -54,17 +54,7 @@ pipeline {
         stage('Deployment in dev') {
             steps {
                 script {
-                    // Clean and prepare the kube directory
-                    sh '''
-                        rm -Rf .kube
-                        mkdir .kube
-                    '''
-                    // Check if the Kubeconfig file exists
-                    if (fileExists('config')) {
-                        sh 'cat config > .kube/config'
-                    } else {
-                        error "config file not found!"
-                    }
+                    
                     // Prepare values file
                     sh '''
                         cp fastapi/values.yaml values.yml
