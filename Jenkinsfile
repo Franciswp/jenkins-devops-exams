@@ -49,12 +49,8 @@ pipeline {
       }
     }
 
-    stage('Deployment in dev'){
-      environment
-      {
-        KUBECONFIG = credentials("config") // we retrieve kubeconfig from secret file called config saved on jenkins
-      }
-      steps {
+    stage('Deployment in dev') {
+    steps {
         script {
             // Clean and prepare the kube directory
             sh '''
@@ -76,7 +72,7 @@ pipeline {
             '''
         }
     }
-    }
+}
 
     stage('Deployment in staging') {
       environment {
