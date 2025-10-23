@@ -11,15 +11,12 @@ pipeline {
        withEnv(["HOME=${env.WORKSPACE}"])  {
           sh '''
            mkdir -p "$HOME"
-           echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-           # Push the tag defined in compose (IMAGE_REPO:IMAGE_TAG)
+           # Prefer v2 ("docker compose"), fall back to v1 ("docker-compose")
            if docker compose version >/dev/null 2>&1; then
-           docker compose push app
+           docker compose --ansi never --progress=plain build
            else
-           docker-compose push app
+           docker-compose build
            fi
-           # Ensure 'latest' is also pushed
-           docker push "${IMAGE_REPO}:latest"
           sleep 6
           '''
         }
