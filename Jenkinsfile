@@ -57,9 +57,15 @@ pipeline {
                     
                     // Prepare values file
                     sh '''
-                        cp helm-chart/values-dev.yaml values.yml
-                        sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
-                        helm upgrade --install app helm --values=values.yml --namespace dev
+                       # Deploy
+                        helm upgrade --install "$RELEASE_NAME" "$CHART_PATH" \
+                            --namespace "$K8S_NAMESPACE" \
+                            --create-namespace \
+                            --set image.repository="$IMAGE" \
+                            --set image.tag="$EFFECTIVE_TAG" \
+                            --set image.pullPolicy=IfNotPresent \
+                            --set-json 'image.pullSecrets=[{"name":"regcred"}]' \
+                            -f "$CHART_PATH/values.yaml"
                     '''
                 }
             }
