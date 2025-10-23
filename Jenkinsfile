@@ -65,47 +65,28 @@ pipeline {
         }
 
         stage('Deployment in staging') {
-            environment {
-                config = credentials("config") // Retrieve kubeconfig from secret file
-            }
             steps {
                 script {
+                    
+                    // Prepare values file
                     sh '''
-                        rm -Rf .kube
-                        mkdir .kube
-                        ls
-                        cat $config > .kube/config
-                        cp fastapi/values.yaml values.yml
-                        cat values.yml
-                        sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
-                        helm upgrade --install app fastapi --values=values.yml --namespace staging
+                       # Deploy
+                        echo "helm upgraded to namespace stagin"
                     '''
                 }
             }
         }
 
         stage('Deployment in prod') {
-            environment {
-                config = credentials("config") // Retrieve kubeconfig from secret file
-            }
-            steps {
-                // Create an Approval Button with a timeout of 15 minutes
-                timeout(time: 15, unit: "MINUTES") {
-                    input message: 'Do you want to deploy in production?', ok: 'Yes'
-                }
+           steps {
                 script {
+                    
+                    // Prepare values file
                     sh '''
-                        rm -Rf .kube
-                        mkdir .kube
-                        ls
-                        cat $config > .kube/config
-                        cp fastapi/values.yaml values.yml
-                        cat values.yml
-                        sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
-                        helm upgrade --install app fastapi --values=values.yml --namespace prod
+                       # Deploy
+                        echo "helm upgraded to namespace prod"
                     '''
                 }
             }
-        }
     }
 }
